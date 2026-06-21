@@ -28,6 +28,9 @@ class _EditLandScreenState extends State<EditLandScreen> {
   late LatLng _selectedLocation;
   late List<String> _existingUrls; // already uploaded
   final List<PickedImage> _newImages = []; // newly picked, not yet uploaded
+  String? _existingDeedUrl;
+  PickedImage? _newDeedImage;
+  bool _removeDeed = false;
   bool _isSubmitting = false;
   String _submitStatus = '';
   String? get _uid => Firebase.auth.currentUser?.uid;
@@ -44,6 +47,7 @@ class _EditLandScreenState extends State<EditLandScreen> {
     _selectedLandType = l.landType;
     _selectedLocation = LatLng(l.latitude, l.longitude);
     _existingUrls = List.from(l.photoUrls);
+    _existingDeedUrl = l.deedPhotoUrl;
   }
 
   @override
@@ -81,6 +85,30 @@ class _EditLandScreenState extends State<EditLandScreen> {
     }
   }
 
+  Future<void> _pickDeedFromGallery() async {
+    final file = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (file != null) {
+      final picked = await PickedImage.fromXFile(file);
+      setState(() {
+        _newDeedImage = picked;
+        _removeDeed = false;
+      });
+    }
+  }
+
+  Future<void> _pickDeedFromCamera() async {
+    final file = await ImagePicker()
+        .pickImage(source: ImageSource.camera, imageQuality: 80);
+    if (file != null) {
+      final picked = await PickedImage.fromXFile(file);
+      setState(() {
+        _newDeedImage = picked;
+        _removeDeed = false;
+      });
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_existingUrls.isEmpty && _newImages.isEmpty) {
@@ -109,6 +137,16 @@ class _EditLandScreenState extends State<EditLandScreen> {
         allUrls.addAll(newUrls);
       }
 
+      String? deedUrl = _removeDeed ? null : _existingDeedUrl;
+      if (_newDeedImage != null) {
+        setState(() => _submitStatus = 'Uploading title deed...');
+        deedUrl = await ListingService.instance.uploadDeedPhoto(
+          sellerId: _uid!,
+          listingId: widget.listing.id,
+          imageBytes: _newDeedImage!.bytes,
+        );
+      }
+
       setState(() => _submitStatus = 'Updating listing...');
       await ListingService.instance.updateListing(widget.listing.id, {
         'plotNumber': _plotController.text.trim().isEmpty
@@ -120,6 +158,7 @@ class _EditLandScreenState extends State<EditLandScreen> {
         'area': _areaController.text.trim(),
         'description': _descController.text.trim(),
         'photoUrls': allUrls,
+        'deedPhotoUrl': deedUrl,
         'latitude': _selectedLocation.latitude,
         'longitude': _selectedLocation.longitude,
       });
@@ -324,6 +363,65 @@ class _EditLandScreenState extends State<EditLandScreen> {
                                 Icons.add_photo_alternate_outlined,
                                 color: AppTheme.primary))),
                   ])),
+              const SizedBox(height: 24),
+              Text.rich(
+                TextSpan(
+                  text: 'Land Title Deed  ',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textDark),
+                  children: [
+                    TextSpan(
+                      text: ' optional',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textMuted.withValues(alpha: 0.8)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                  'A photo of the title deed shown to buyers along with the listing.',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textMuted.withValues(alpha: 0.8))),
+              const SizedBox(height: 8),
+              if (_newDeedImage != null)
+                _DeedPreview(
+                    child: Image.memory(_newDeedImage!.bytes,
+                        fit: BoxFit.cover, width: double.infinity, height: 140),
+                    onRemove: () => setState(() => _newDeedImage = null))
+              else if (_existingDeedUrl != null && !_removeDeed)
+                _DeedPreview(
+                    child: Image.network(_existingDeedUrl!,
+                        fit: BoxFit.cover, width: double.infinity, height: 140),
+                    onRemove: () => setState(() => _removeDeed = true))
+              else
+                Row(children: [
+                  Expanded(
+                      child: OutlinedButton.icon(
+                          onPressed: _pickDeedFromGallery,
+                          icon: const Icon(Icons.photo_library_outlined,
+                              size: 18),
+                          label: const Text('Gallery'),
+                          style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primary,
+                              side:
+                                  const BorderSide(color: AppTheme.primary)))),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child: OutlinedButton.icon(
+                          onPressed: _pickDeedFromCamera,
+                          icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                          label: const Text('Camera'),
+                          style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primary,
+                              side:
+                                  const BorderSide(color: AppTheme.primary)))),
+                ]),
               const SizedBox(height: 32),
               if (_isSubmitting && _submitStatus.isNotEmpty) ...[
                 Center(
@@ -345,5 +443,37 @@ class _EditLandScreenState extends State<EditLandScreen> {
                       : const Text('Save Changes')),
               const SizedBox(height: 24),
             ])));
+  }
+}
+
+class _DeedPreview extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onRemove;
+  const _DeedPreview({required this.child, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(children: [
+      Container(
+          width: double.infinity,
+          height: 140,
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE5E7EB))),
+          child:
+              ClipRRect(borderRadius: BorderRadius.circular(10), child: child)),
+      Positioned(
+          top: 6,
+          right: 6,
+          child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                      color: AppTheme.error, shape: BoxShape.circle),
+                  child:
+                      const Icon(Icons.close, size: 14, color: Colors.white)))),
+    ]);
   }
 }

@@ -34,6 +34,7 @@ class _AddLandScreenState extends State<AddLandScreen> {
   String _submitStatus = '';
 
   final List<PickedImage> _pickedImages = [];
+  PickedImage? _deedImage;
 
   static const LatLng _amman = LatLng(31.9539, 35.9106);
   static const double _minLat = 29.0;
@@ -120,6 +121,24 @@ class _AddLandScreenState extends State<AddLandScreen> {
     }
   }
 
+  Future<void> _pickDeedFromGallery() async {
+    final file = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (file != null) {
+      final picked = await PickedImage.fromXFile(file);
+      setState(() => _deedImage = picked);
+    }
+  }
+
+  Future<void> _pickDeedFromCamera() async {
+    final file = await ImagePicker()
+        .pickImage(source: ImageSource.camera, imageQuality: 80);
+    if (file != null) {
+      final picked = await PickedImage.fromXFile(file);
+      setState(() => _deedImage = picked);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedLocation == null) {
@@ -148,6 +167,16 @@ class _AddLandScreenState extends State<AddLandScreen> {
         imageBytes: _pickedImages.map((p) => p.bytes).toList(),
       );
 
+      String? deedUrl;
+      if (_deedImage != null) {
+        setState(() => _submitStatus = 'Uploading title deed...');
+        deedUrl = await ListingService.instance.uploadDeedPhoto(
+          sellerId: _uid!,
+          listingId: tempKey,
+          imageBytes: _deedImage!.bytes,
+        );
+      }
+
       setState(() => _submitStatus = 'Saving listing...');
       final listing = LandListing(
         id: '',
@@ -161,6 +190,7 @@ class _AddLandScreenState extends State<AddLandScreen> {
         area: _areaController.text.trim(),
         description: _descController.text.trim(),
         photoUrls: urls,
+        deedPhotoUrl: deedUrl,
         latitude: _selectedLocation!.latitude,
         longitude: _selectedLocation!.longitude,
         status: 'active',
@@ -466,6 +496,79 @@ class _AddLandScreenState extends State<AddLandScreen> {
                         foregroundColor: AppTheme.primary,
                         side: const BorderSide(color: AppTheme.primary)))),
           ]),
+          const SizedBox(height: 24),
+          Text.rich(
+            TextSpan(
+              text: 'Land Title Deed ',
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textDark),
+              children: [
+                TextSpan(
+                  text: ' optional',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textMuted.withValues(alpha: 0.8)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+              'A photo of the title deed shown to buyers along with the listing.',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textMuted.withValues(alpha: 0.8))),
+          const SizedBox(height: 8),
+          if (_deedImage != null)
+            Stack(children: [
+              Container(
+                  width: double.infinity,
+                  height: 140,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE5E7EB))),
+                  child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.memory(_deedImage!.bytes,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: 140))),
+              Positioned(
+                  top: 6,
+                  right: 6,
+                  child: GestureDetector(
+                      onTap: () => setState(() => _deedImage = null),
+                      child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                              color: AppTheme.error, shape: BoxShape.circle),
+                          child: const Icon(Icons.close,
+                              size: 14, color: Colors.white)))),
+            ])
+          else
+            Row(children: [
+              Expanded(
+                  child: OutlinedButton.icon(
+                      onPressed: _pickDeedFromGallery,
+                      icon: const Icon(Icons.photo_library_outlined, size: 18),
+                      label: const Text('Gallery'),
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primary,
+                          side: const BorderSide(color: AppTheme.primary)))),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: OutlinedButton.icon(
+                      onPressed: _pickDeedFromCamera,
+                      icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                      label: const Text('Camera'),
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primary,
+                          side: const BorderSide(color: AppTheme.primary)))),
+            ]),
           const SizedBox(height: 32),
           if (_isSubmitting && _submitStatus.isNotEmpty) ...[
             Center(

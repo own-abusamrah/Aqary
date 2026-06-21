@@ -118,6 +118,24 @@ class ListingService {
     return urls;
   }
 
+  /// Upload a single land title deed (qoshan) photo and return its download URL.
+  Future<String> uploadDeedPhoto({
+    required String sellerId,
+    required String listingId,
+    required Uint8List imageBytes,
+  }) async {
+    final ref = Firebase.storage.ref(
+      'listings/$sellerId/$listingId/deed_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+
+    await ref.putData(
+      imageBytes,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+
+    return ref.getDownloadURL();
+  }
+
   /// Create a new land listing in Firestore.
   /// Photos should be uploaded first via [uploadPhotos].
   Future<String> createListing(LandListing listing) async {

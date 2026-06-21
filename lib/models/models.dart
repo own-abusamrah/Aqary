@@ -10,6 +10,7 @@ class LandListing {
   final String area;
   final String description;
   final List<String> photoUrls;
+  final String? deedPhotoUrl;
   final double latitude;
   final double longitude;
   final String status;
@@ -25,6 +26,7 @@ class LandListing {
     required this.area,
     required this.description,
     required this.photoUrls,
+    this.deedPhotoUrl,
     required this.latitude,
     required this.longitude,
     this.status = 'active',
@@ -42,6 +44,7 @@ class LandListing {
       area: map['area'] ?? '',
       description: map['description'] ?? '',
       photoUrls: List<String>.from(map['photoUrls'] ?? []),
+      deedPhotoUrl: map['deedPhotoUrl'],
       latitude: (map['latitude'] as num).toDouble(),
       longitude: (map['longitude'] as num).toDouble(),
       status: map['status'] ?? 'active',
@@ -61,6 +64,7 @@ class LandListing {
         'area': area,
         'description': description,
         'photoUrls': photoUrls,
+        'deedPhotoUrl': deedPhotoUrl,
         'latitude': latitude,
         'longitude': longitude,
         'status': status,
@@ -120,12 +124,10 @@ class AppUser {
       email: map['email'] ?? '',
       role: map['role'] ?? 'buyer',
       fcmToken: map['fcmToken'],
-      lastLat: map['lastLat'] != null
-          ? (map['lastLat'] as num).toDouble()
-          : null,
-      lastLng: map['lastLng'] != null
-          ? (map['lastLng'] as num).toDouble()
-          : null,
+      lastLat:
+          map['lastLat'] != null ? (map['lastLat'] as num).toDouble() : null,
+      lastLng:
+          map['lastLng'] != null ? (map['lastLng'] as num).toDouble() : null,
       isBlocked: map['isBlocked'] ?? false,
       subscriptionPlan: map['subscriptionPlan'] ?? 'free',
       subscriptionStatus: map['subscriptionStatus'] ?? 'none',
